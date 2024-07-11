@@ -1,3 +1,4 @@
 chat/
 model_venv/
 hugging_face/
+__pycache__/
