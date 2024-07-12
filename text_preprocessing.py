@@ -71,19 +71,19 @@ def txt_process(lines, user_name):
 
 def txt_to_csv(file, user_name):
 
-    # with open(file, 'rb') as f:
-    #     raw_data = f.read()
-    #     result = chardet.detect(raw_data)
-    #     encoding = result['encoding']
-    #     print(f'Detected encoding: {encoding}')
+    with open(file, 'rb') as f:
+        raw_data = f.read()
+        result = chardet.detect(raw_data)
+        encoding = result['encoding']
+        print(f'Detected encoding: {encoding}')
 
-    # # Open the file with the detected encoding
-    # with open(file, 'r', encoding=encoding) as f:
-    #     lines = f.readlines()
+    # Open the file with the detected encoding
+    with open(file, 'r', encoding=encoding) as f:
+        lines = f.readlines()
 
     # 텍스트 파일을 읽어와 리스트로 저장
-    file = open(file, 'r')
-    lines = file.readlines()
+    #file = open(file, 'r')
+    #lines = file.readlines()
 
     past_pattern = r"(\d{4}년 \d{1,2}월 \d{1,2}일) (오후|오전) (\d{1,2}:\d{2}), (.*?) :"
     match = re.search(past_pattern, lines[30].strip())

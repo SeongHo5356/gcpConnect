@@ -105,7 +105,7 @@ def upload(text_file, user_name):
     return room_name, group, users, result
     #####################################################
 
-if __name__ == '__main__' :
-    upload('KakaoTalk_20240710_0314_59_471_주연이2.txt', '정성호')
+#if __name__ == '__main__' :
+#    upload('chat\KakaoTalk_20240712_0137_16_127_민서.txt', '정성호')
 
 
