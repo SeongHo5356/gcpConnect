@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from modeling import upload
 import os
 import uvicorn
+import torch
 
 app = FastAPI()
 
@@ -40,6 +41,16 @@ async def upload_filee(file: UploadFile = File(...), username: str = Form(...)):
         if os.path.exists(temp_file):
             os.remove(temp_file)
         return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@app.get("/gpu-info")
+def get_gpu_info():
+    return {
+        "pytorch_version": torch.__version__,
+        "cuda_available": torch.cuda.is_available(),
+        "gpu_count": torch.cuda.device_count(),
+        "gpu_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+        "cuda_version": torch.version.cuda if torch.cuda.is_available() else None
+    }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)

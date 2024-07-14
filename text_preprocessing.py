@@ -154,3 +154,8 @@ def text_pairing(data, target):
     matching_df = pd.concat(dfs, axis=0, ignore_index=True)    
 
     return matching_df
+
+import multiprocessing
+
+if __name__ == '__main__':
+    multiprocessing.set_start_method('spawn')

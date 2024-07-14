@@ -21,6 +21,8 @@ class hugging():
     
 # 파이프라인 실행 -> 변환 문장 return
 def make_pipeline(model, tokenizer, device):
+    print("torch.cuda.is_available : ", torch.cuda.is_available())
+    print("device : ", device)
     nlg_pipeline = pipeline('text2text-generation', model=model, tokenizer=tokenizer, device=device, max_length=60) # "auto" -> 자동으로 분산
     return nlg_pipeline
 

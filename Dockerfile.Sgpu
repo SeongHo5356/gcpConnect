@@ -1,0 +1,37 @@
+# Use NVIDIA CUDA 12.1 base image
+FROM nvidia/cuda:12.1.0-base-ubuntu22.04
+
+# Install necessary packages (including curl)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    gnupg2 \
+    software-properties-common
+
+# Add NVIDIA repository and install NVIDIA Container Toolkit
+RUN curl -fsSL https://nvidia.github.io/nvidia-docker/gpgkey | gpg --dearmor -o /usr/share/keyrings/nvidia-docker.gpg && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/nvidia-docker.gpg] https://nvidia.github.io/nvidia-docker/ $(. /etc/os-release; echo $ID$VERSION_ID) /" | tee /etc/apt/sources.list.d/nvidia-docker.list && \
+    apt-get update && \
+    apt-get install -y nvidia-docker2
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Install Python and pip
+RUN apt-get update && apt-get install -y python3 python3-pip
+
+# Copy the current directory contents into the container at /app
+COPY requirements.txt api_server.py modeling.py hug.py text_preprocessing.py user_speech_modeling.py ./
+
+# Install any needed packages specified in requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+# Install PyTorch 2.3.0 with CUDA 12.1 support
+RUN pip3 install torch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 --index-url https://download.pytorch.org/whl/cu121
+
+# Make port 8000 available to the world outside this container
+EXPOSE 8000
+
+# Run app.py when the container launches
+CMD ["uvicorn", "api_server:app", "--host", "0.0.0.0", "--port", "8000"]
