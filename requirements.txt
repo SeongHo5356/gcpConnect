@@ -7,10 +7,6 @@ chardet==5.2.0
 charset-normalizer==3.3.2
 click==8.1.7
 colorama==0.4.6
-Django==4.2.14
-django-allauth==0.63.3
-django-environ==0.11.2
-djangorestframework==3.15.2
 dnspython==2.6.1
 email_validator==2.2.0
 emoji==1.2.0
@@ -67,7 +63,6 @@ sympy==1.13.0
 threadpoolctl==3.5.0
 tokenizers==0.19.1
 tomli==2.0.1
-torch==2.2.2
 tqdm==4.66.4
 transformers==4.42.3
 typer==0.12.3
