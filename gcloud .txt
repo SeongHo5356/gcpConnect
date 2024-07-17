@@ -1,0 +1,50 @@
+gcloud 
+
+인스턴스 목록 확인
+gcloud compute instances list
+
+특정 존 인스턴스 확인
+gcloud compute instances list --zone=asia-east2-c
+
+인스턴스 시작 
+gcloud compute instances start one-gpu --zone=asia-east2-c
+
+인스턴스 중지 
+gcloud compute instances stop one-gpu --zone=asia-east2-c
+
+인스턴스 삭제
+gcloud compute instances delete one-gpu --zone=asia-east2-c
+
+인스턴스 SSH로 접속
+gcloud compute ssh one-gpu --zone=asia-east2-c
+
+
+인스턴스 생성
+gcloud compute instances create my-gpu-instance \
+    --zone=us-central1-a \
+    --machine-type=n1-standard-4 \
+    --accelerator=type=nvidia-tesla-k80,count=1 \
+    --image-family=ubuntu-2004-lts \
+    --image-project=ubuntu-os-cloud \
+    --maintenance-policy=TERMINATE \
+    --boot-disk-size=50GB \
+    --metadata=startup-script='#!/bin/bash
+      sudo apt-get update
+      sudo apt-get install -y nvidia-driver-450
+      sudo reboot'
+
+스냅샷 생성
+gcloud compute disks snapshot my-gpu-instance --zone=asia-east1-c --snapshot-names=my-gpu-instance-snapshot
+
+다른 존에서 새 인스턴스 생성
+gcloud compute instances create my-gpu-instance-new \
+    --zone=us-central1-a \
+    --machine-type=n1-standard-4 \
+    --accelerator=type=nvidia-tesla-k80,count=1 \
+    --source-snapshot=my-gpu-instance-snapshot \
+    --maintenance-policy=TERMINATE \
+    --metadata=startup-script='#!/bin/bash
+      sudo apt-get update
+      sudo apt-get install -y nvidia-driver-450
+      sudo reboot'
+
