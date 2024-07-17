@@ -37,7 +37,7 @@ def process_2(queue2, df, hug_obj):
     world_size = torch.cuda.device_count()
     print("process_2 진행중")
     print("World_size : ", world_size)
-    torch.mp.spawn(user_modeling, args=(df, hug_obj, world_size), nprocs=world_size, join=True)
+    torch.multiprocessing.spawn(user_modeling, args=(df, hug_obj, world_size), nprocs=world_size, join=True)
     ###########################################
 
     user_model = user_modeling(df, hug_obj, 0, world_size) ## update
