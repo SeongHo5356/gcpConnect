@@ -105,7 +105,8 @@ def upload(text_file, user_name):
     return room_name, group, users, result
     #####################################################
 
-if __name__ == '__main__' :
-    upload('chat\KakaoTalk_20240713_2159_31_808_민서.txt', '정성호')
+#if __name__ == '__main__' :
+#    multiprocessing.set_start_method('spawn')
+#    upload('chat\KakaoTalk_20240713_2159_31_808_민서.txt', '정성호')
 
 
