@@ -1,14 +1,40 @@
+import os
+import torch
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP 
+from torch.utils.data.distributed import DistributedSampler
 from transformers import (
     Seq2SeqTrainingArguments,
     Seq2SeqTrainer,
     DataCollatorForSeq2Seq,
-    EarlyStoppingCallback)
+    EarlyStoppingCallback
+)
+
 from tokenizers import Tokenizer
 from torch.utils.data import Dataset
 import text_preprocessing as txt
 import os, shutil
 import pandas as pd
 from sklearn.model_selection import train_test_split
+
+######################################################################
+def setup(rank, world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+
+def cleanup():
+    dist.destroy_progress_group()
+
+class DistributedTrainer(Seq2SeqTrainer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _wrap_model(self, model, training=True):
+        if self.args.local_rank != -1:
+            model = DDP(model, device_ids=[self.args.local_rank], output_device=self.args.local_rank)
+        return model
+######################################################################
 
 """학습 데이터셋 생성 함수"""
 class TextStyleTransferDataset(Dataset):
@@ -42,7 +68,9 @@ class TextStyleTransferDataset(Dataset):
 
 """모델 학습"""
 """현재는 용량문제로인해 모델 결과물은 저장하지 않음 --> 추후에 용량 확보되면 save_path지정필요"""
-def user_modeling(df, hug_obj):
+def user_modeling(df, hug_obj, rank, world_size): ## Update
+    setup(rank, world_size)  ## ADD
+
     df=txt.text_pairing(df, 'user')
     model =hug_obj.origin_model
     tokenizer = hug_obj.tokenizer
@@ -51,18 +79,13 @@ def user_modeling(df, hug_obj):
     df_train, df_test = train_test_split(df, test_size=0.2, random_state=42)
     print(len(df_train), len(df_test))
 
-    train_dataset = TextStyleTransferDataset(
-        df_train,
-        tokenizer
-    )
-    test_dataset = TextStyleTransferDataset(
-        df_test,
-        tokenizer
-    )
+    train_dataset = TextStyleTransferDataset(df_train, tokenizer)
+    test_dataset = TextStyleTransferDataset(df_test, tokenizer)
 
-    data_collator = DataCollatorForSeq2Seq(
-        tokenizer=tokenizer, model=model
-    )
+    train_sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank) ## ADD
+    test_sampler = DistributedSampler(test_dataset, num_replicas=world_size, rank=rank) ## ADD
+
+    data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model)
 
     directory_to_delete = "saved_model"
 
@@ -80,9 +103,10 @@ def user_modeling(df, hug_obj):
                     num_train_epochs=10,
                     predict_with_generate=True,
                     fp16=False,
+                    local_rank = rank ## ADD
             )
 
-    trainer = Seq2SeqTrainer(
+    trainer = DistributedTrainer( ## Update
         model=model,
         args=training_args,
         data_collator=data_collator,
@@ -93,11 +117,12 @@ def user_modeling(df, hug_obj):
 
     # 모델 학습
     trainer.train()
-
     
     # trainer.save_model(save_path) # 용량으로 인해 저장은 안함.
     
     if os.path.exists(directory_to_delete):
         shutil.rmtree(directory_to_delete)
+    
+    cleanup()
 
     return trainer.model
