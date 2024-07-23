@@ -13,17 +13,22 @@ app = FastAPI()
 
 async def send_request_to_new_endpoint(training_result: str, user_id: str, user_name: str, room_name: str):
     
-    encoded_user_name = base64.b64encode(user_name).decode('utf-8')
-    encoded_room = base64.b64encode(room_name).decode('utf-8')
+    encoded_user_name = base64.b64encode(user_name.encode('utf-8')).decode('utf-8')
+    encoded_room = base64.b64encode(room_name.encode('utf-8')).decode('utf-8')
 
     data = {
          "user_name": encoded_user_name,
          "user_id": user_id,
          "room": encoded_room,
-         "reply_list": training_result
+         "reply_list": str(training_result)
     }
+
+    print(f"Result Sent to DB | user_name : {encoded_user_name}")
+    print(f"Result Sent to DB | user_id : {user_id}")
+    print(f"Result Sent to DB | encoded_room : {encoded_room}")
+    print(f"Result Sent to DB | reply_list : {training_result}")  
     async with httpx.AsyncClient() as client:
-        response = await client.post( "https://itsme.site/api/model_result/", json=data)
+        response = await client.post( "https://itsmeweb.site/api/model_result", json=data)
     
     return response.status_code
 
@@ -34,14 +39,9 @@ async def upload_file(
     user_id: str = Form(...),
     file: UploadFile = File(...)):
 
-    # 요청 데이터 출력 (디버깅 용도)
-    print(f"User Uploaded : Received file: {file.filename}")
-    print(f"User Uploaded : User Name from header: {user_name}")
-    print(f"User Uploaded : User ID from header: {user_id}")
-
     ## bast64 인코딩 된 내용을 디코딩
     user_name_decoded = base64.b64decode(user_name).decode('utf-8')
-
+    
     file_content = await file.read()
 
     # 벡그라운드 작업으로 처리
@@ -50,6 +50,10 @@ async def upload_file(
     return {"filename": file.filename, "user_name": user_name_decoded, "user_id": user_id}
 
 async def process_file(file_content: bytes, filename: str, user_name: str, user_id: str):
+
+    print(f"User Upload : Received file from request: {filename}")
+    print(f"User Upload : User Name from decoded from request: {user_name}")
+    print(f"User Upload : User ID from request: {user_id}")
 
     # 임시 파일로 저장
     temp_file = f"temp_{filename}"
@@ -63,8 +67,13 @@ async def process_file(file_content: bytes, filename: str, user_name: str, user_
     print(f"Model Learned | room_name : {room_name}")
     print(f"Model Learned | user_id : {user_id}")
     print(f"Model learned | user_name : {user_name}")
-    
+
+    # 임시 파일 제거
+    os.remove(temp_file)
+
+    # DB로 request를 보낸다
     status_code = await send_request_to_new_endpoint(result, user_id, user_name, room_name)
+
     print(f"Send Request to New EndPoint | Status code: {status_code}")
 
 @app.get("/")
@@ -116,8 +125,8 @@ if __name__ == "__main__":
     uvicorn.run(
         "api_server:app", 
         host="0.0.0.0",
-        port=8000, 
-        #ssl_keyfile="/etc/letsencrypt/live/itsmeweb.net/privkey.pem", 
-        #ssl_certfile="/etc/letsencrypt/live/itsmeweb.net/fullchain.pem"
+        port=443, 
+        ssl_keyfile="/etc/letsencrypt/live/itsmeweb.net/privkey.pem", 
+        ssl_certfile="/etc/letsencrypt/live/itsmeweb.net/fullchain.pem"
         )
 
