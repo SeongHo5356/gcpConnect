@@ -11,6 +11,26 @@ def remove_some(text):
     text = re.sub(r'http\S+', '', text)
     return text
 
+## 새로추가 함수
+def regexp(sentence):
+    pattern1 = re.compile(r"[ㄱ-ㅎㅏ-ㅣ]+")  # 한글 자모음만 반복되면 공백으로 대체
+    pattern2 = re.compile(r":\)|[@#$^\*\(\)\[\]\{\}<>\/\"'=+\|_]+")  # 특수문자 공백으로 대체 (~, !, %, &, -, ,, ., ;, :, ?는 유지)
+    # 특수문자 공백으로 대체 (~, !, %, &, -, ,, ., ;, :, ?는 유지)
+    # pattern3 = re.compile(r"([^\d])\1{2,}")  # 숫자를 제외한 동일한 문자 3개 이상이면 공백으로 대체
+    pattern3 = re.compile(  # 이모티콘 공백으로 대체
+        "["                               
+        "\U0001F600-\U0001F64F"  # 감정 관련 이모티콘
+        "\U0001F300-\U0001F5FF"  # 기호 및 픽토그램
+        "\U0001F680-\U0001F6FF"  # 교통 및 지도 기호
+        "\U0001F1E0-\U0001F1FF"  # 국기 이모티콘
+        "]+", flags=re.UNICODE
+    )
+    new_sent1 = pattern1.sub(' ', sentence)
+    new_sent2 = pattern2.sub(' ', new_sent1)
+    new_sent3 = pattern3.sub(' ', new_sent2)
+    # new_sent4 = pattern4.sub(' ', new_sent3)
+    return new_sent3
+
 def txt_process(lines, user_name): 
     df = pd.DataFrame(columns=['text'])
     for line in lines:
@@ -43,8 +63,12 @@ def txt_process(lines, user_name):
 
     df['text'] = df['text'].apply(str)
     df['text'] = df['text'].apply(remove_some)    # 사진, 이모티콘, 샵검색, https:, [사용자] 등의 불용어 제거
+    df['text'] = df['text'].apply(regexp) ### 새로추가 -- 이모티콘 제거
+
     # 채팅방 내의 사용자 리스트 추출
     users = list(df['user'].dropna().unique())
+    users = [user for user in users if user != ''] ### 새로추가
+
     # 사용자가 보낸 문장의 인덱스 추출 --> 이전문장도 사용자가 보낸 문장이면 합치기
     user_index = list(df[df['user'] == user_name].index)
     for index in range(1, len(user_index)):
@@ -155,4 +179,7 @@ def text_pairing(data, target):
 
     return matching_df
 
+import multiprocessing
 
+if __name__ == '__main__':
+    multiprocessing.set_start_method('spawn')

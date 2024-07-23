@@ -3,7 +3,6 @@ from hug import hugging, make_pipeline
 import text_preprocessing as txt
 import multiprocessing as mp
 import time
-import torch
 
 # 정중체, 상냥체 모델로 학습데이터 생성
 def process_1(queue1, df, hug_obj):
@@ -33,14 +32,7 @@ def process_1(queue1, df, hug_obj):
 
 # 사용자 말투 학습 + 답장 리스트 생성
 def process_2(queue2, df, hug_obj):
-    ########################################### ADD
-    world_size = torch.cuda.device_count()
-    print("process_2 진행중")
-    print("World_size : ", world_size)
-    torch.multiprocessing.spawn(user_modeling, args=(df, hug_obj, world_size), nprocs=world_size, join=True)
-    ###########################################
-
-    user_model = user_modeling(df, hug_obj, 0, world_size) ## update
+    user_model = user_modeling(df, hug_obj)
     test_texts = ["알겠습니다", "가고있습니다", "무슨일있어요?", "나중에 연락드릴게요", "전화로 해주세요", "알바중이에요", "운전중입니다", "회의중입니다"]
     result = []
     user_pipeline = make_pipeline(model=user_model, tokenizer=hug_obj.tokenizer, device=hug_obj.device)
@@ -115,6 +107,4 @@ def upload(text_file, user_name):
 
 if __name__ == '__main__' :
     mp.set_start_method('spawn')
-    upload('chat\KakaoTalk_20240713_2159_31_808_민서.txt', '정성호')
-
-
+    upload('chat\KakaoTalk_20240713_2159_31_808_민서 copy.txt', '정성호')
