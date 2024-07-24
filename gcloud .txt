@@ -48,3 +48,86 @@ gcloud compute instances create my-gpu-instance-new \
       sudo apt-get install -y nvidia-driver-450
       sudo reboot'
 
+백그라라운드에서 실행
+sudo nohup python3 api_server.py &
+
+실행중인 프로세스 확인
+ps aux | grep api_server.py
+
+로그 확인 
+tail -f nohup.out
+
+프로세스 종료
+kill 12345  # 12345를 실제 프로세스 ID로 대체
+
+gpu 사용 확인(0.5초마다 갱신)
+watch -d -n 0.5 nvidia-smi
+
+남은 디스크 용량
+df -h
+
+gcloud SDK 업데이트
+
+gcloud 프로젝트 설정
+
+ubuntu 22.04 LTS
+부팅디스크 100GB
+asia-east2-c
+t4 gpu 1개 
+
+파일 이동 mv 파일 이동한 directory
+
+시스템업데이트
+sudo apt update && sudo apt upgrade -y
+
+필요도구 설치
+sudo apt install -y build-essential software-properties-common
+
+파이썬 설치
+sudo apt install python3
+sudo apt-get upgrade python3
+sudo apt install python3-pip
+pip3 --version
+
+드라이버 설치 패키지 설치
+sudo apt-get install ubuntu-drivers-common
+
+설치 가능 드라이버목록
+ubuntu-drivers devices
+
+설치할 드라이버 수동 자동설치
+sudo apt-get install nvidia-driver-515 또는 sudo ubuntu-drivers autoinstall
+
+설치 완료 시
+$ sudo reboot
+$ nvidia-smi
+
+쿠다 설치 - 12.1
+wget https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run
+sudo sh cuda_12.1.0_530.30.02_linux.run
+
+
+
+torch 설치 
+sudo pip3 install torch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 --index-url https://download.pytorch.org/whl/cu121
+
+확인
+import torch
+print(torch.__version__)
+print(torch.cuda.is_available())
+
+sudo pip3 install -r requirements.txt
+
+sudo apt install certbot
+
+sudo certbot certonly --standalone -d itsmeweb.site -d www.itsmeweb.site
+
+DNS 네임서버 cloud domain 이어도 바꿔야함 새로운 그룹 만들면
+ns-cloud-e1.googledomains.com.
+ns-cloud-e2.googledomains.com.
+ns-cloud-e3.googledomains.com.
+ns-cloud-e4.googledomains.com.
+
+
+
+
