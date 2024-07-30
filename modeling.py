@@ -100,6 +100,8 @@ def upload(text_file, user_name):
     print("\n변환된 답장 목록:")
     print(result)
 
+    result = result[:30]
+
     #####################################################
     print("총 소요 시간: ", total_time // 60, "분")
     return room_name, group, users, result
@@ -107,4 +109,4 @@ def upload(text_file, user_name):
 
 if __name__ == '__main__' :
     mp.set_start_method('spawn')
-    upload('chat\KakaoTalk_20240713_2159_31_808_민서 copy.txt', '정성호')
+    upload('chat/민서좀짧음.txt', '정성호')

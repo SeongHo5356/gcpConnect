@@ -3,6 +3,7 @@ import re
 from kss import split_sentences
 import multiprocessing as mp
 import chardet
+import os
 
 def remove_some(text):
     if("이모티콘" in text or "사진" in text):
@@ -32,7 +33,11 @@ def regexp(sentence):
     return new_sent3
 
 def txt_process(lines, user_name): 
+    # \u202f를 일반 공백으로 치환
+    lines = [line.replace('\u202f', ' ') for line in lines]
+
     df = pd.DataFrame(columns=['text'])
+
     for line in lines:
         if line is not None:
             decoded_line = line
@@ -40,8 +45,15 @@ def txt_process(lines, user_name):
     
     past_pattern = r"(\d{4}년 \d{1,2}월 \d{1,2}일) (오후|오전) (\d{1,2}:\d{2}), (.*?) :"
     now_pattern = r"\[(.*?)\] \[(오전|오후) (\d{1,2}:\d{2})\]"
+    eml_pattern = r"(.*?\d{1,2},\s*\d{4})\s*at\s*(\d{1,2}:\d{2}\s*[AP]M),\s*(.*?)\s*:"
+    csv_pattern = r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),"([^"]+)","([^"]+)"'
+
     match = re.search(past_pattern, str(df['text'].iloc[10]))
+    eml_match = re.search(eml_pattern, str(df['text'].iloc[10]))
+    csv_match = re.search(csv_pattern, str(df['text'].iloc[10]))
+    
     df['user']=""
+
     if match:
         pattern = past_pattern
         for index, message in df['text'].items():
@@ -51,20 +63,40 @@ def txt_process(lines, user_name):
                 df.at[index, 'user'] = sender
                 df.at[index, 'text'] = re.sub(pattern, '', df.at[index, 'text'].lstrip())
     else:
-        pattern = now_pattern
-        for index, message in df['text'].items():
-            match = re.search(pattern, str(message))
-            if match:
-                sender = match.group(1)
-                df.at[index, 'user'] = sender
-                df.at[index, 'text'] = re.sub(pattern, '', df.at[index, 'text'].lstrip())
-    
+        if eml_match: 
+            pattern = eml_pattern
+            sender_group = 3
+            for index, message in df['text'].items():
+                match = re.search(pattern, str(message))
+                if match:
+                    sender = match.group(sender_group)
+                    df.at[index, 'user'] = sender
+                    df.at[index, 'text'] = re.sub(pattern, '', df.at[index, 'text'].lstrip())
+        elif csv_match :
+            pattern = csv_pattern
+            sender_group = 2
+            for index, message in df['text'].items():
+                match = re.search(pattern, str(message))
+                if match:
+                    sender = match.group(sender_group)
+                    df.at[index, 'user'] = sender
+                    df.at[index, 'text'] = match.group(3)
+        else : 
+            pattern = now_pattern
+            for index, message in df['text'].items():
+                match = re.search(pattern, str(message))
+                if match:
+                    sender = match.group(1)
+                    df.at[index, 'user'] = sender
+                    df.at[index, 'text'] = re.sub(pattern, '', df.at[index, 'text'].lstrip())
     df.dropna(inplace=True)
+
 
     df['text'] = df['text'].apply(str)
     df['text'] = df['text'].apply(remove_some)    # 사진, 이모티콘, 샵검색, https:, [사용자] 등의 불용어 제거
     df['text'] = df['text'].apply(regexp) ### 새로추가 -- 이모티콘 제거
 
+    
     # 채팅방 내의 사용자 리스트 추출
     users = list(df['user'].dropna().unique())
     users = [user for user in users if user != ''] ### 새로추가
@@ -91,29 +123,53 @@ def txt_process(lines, user_name):
     # 문장은 최소 5글자
     splited_df = splited_df[splited_df['text'].str.len() >= 5]
     
+    print("splited_df! : ", splited_df)
+    print("users! : " ,users)
+
     return splited_df, users
 
 def txt_to_csv(file, user_name):
-
-    with open(file, 'rb') as f:
-        raw_data = f.read()
-        result = chardet.detect(raw_data)
-        encoding = result['encoding']
-        print(f'Detected encoding: {encoding}')
-
-    # Open the file with the detected encoding
-    with open(file, 'r', encoding=encoding) as f:
+    file_name = ""
+    with open(file, 'r', encoding='utf-8') as f:
         lines = f.readlines()
+        file_name = f.name
+
+    #print("==============================")
+    #print(lines)
+    #print("==============================")
+
+    print(file_name)
+    # with open(file, 'rb') as f:
+    #     raw_data = f.read()
+    #     result = chardet.detect(raw_data)
+    #     encoding = result['encoding']
+    #     print(f'Detected encoding: {encoding}')
+
+    # # Open the file with the detected encoding
+    # with open(file, 'r', encoding=encoding) as f:
+    #     lines = f.readlines()
 
     # 텍스트 파일을 읽어와 리스트로 저장
     #file = open(file, 'r')
     #lines = file.readlines()
 
     past_pattern = r"(\d{4}년 \d{1,2}월 \d{1,2}일) (오후|오전) (\d{1,2}:\d{2}), (.*?) :"
-    match = re.search(past_pattern, lines[30].strip())
+    now_pattern = r"\[(.*?)\] \[(오전|오후) (\d{1,2}:\d{2})\]"
+    eml_pattern = r"(.*?\d{1,2},\s*\d{4})\s*at\s*(\d{1,2}:\d{2}\s*[AP]M),\s*(.*?)\s*:"
+    csv_pattern = r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),"([^"]+)","([^"]+)"'
+
+    match = re.search(past_pattern, lines[5].strip())
+    eml_match = re.search(eml_pattern, lines[5].strip())
+    csv_match = re.search(csv_pattern, lines[5].strip())
+
     """ 방 이름 확인 """
     if match:
         room_name = lines[0].replace(" 카카오톡 대화", "")
+    elif eml_match: 
+        room_name = lines[0].replace("KakaoTalk Chats with ", "")
+    elif csv_match:
+        file_name = os.path.basename(file)
+        room_name = file_name
     else:
         room_name = lines[0].replace(" 님과 카카오톡 대화", "")
     
@@ -130,10 +186,10 @@ def txt_to_csv(file, user_name):
         match = re.search(past_pattern, lines[30].strip())
         
         """ 방 이름 확인 """
-        if match:
-            room_name = lines[0].strip().replace(" 카카오톡 대화", "")
-        else:
-            room_name = lines[0].strip().replace(" 님과 카카오톡 대화", "")
+        # if match:
+        #     room_name = lines[0].strip().replace(" 카카오톡 대화", "")
+        # else:
+        #     room_name = lines[0].strip().replace(" 님과 카카오톡 대화", "")
         
         # 논리 프로세서 수
         chunk_num = mp.cpu_count()

@@ -7,12 +7,25 @@ import uvicorn
 import torch
 import httpx
 import base64
+import shutil
 import multiprocessing as mp
+from fastapi.encoders import jsonable_encoder
+from enum import Enum
+from typing import Dict
+from multiprocessing import Manager
 
 app = FastAPI()
 
+class TrainingStatus(Enum):
+    PROCESSING = "processing"
+    PENDING = "pending"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+# 학습 상태를 저장할 딕셔너리
+training_status: Dict[str, TrainingStatus] = {}
+
 async def send_request_to_new_endpoint(training_result: str, user_id: str, user_name: str, room_name: str):
-    
     encoded_user_name = base64.b64encode(user_name.encode('utf-8')).decode('utf-8')
     encoded_room = base64.b64encode(room_name.encode('utf-8')).decode('utf-8')
 
@@ -28,53 +41,100 @@ async def send_request_to_new_endpoint(training_result: str, user_id: str, user_
     print(f"Result Sent to DB | encoded_room : {encoded_room}")
     print(f"Result Sent to DB | reply_list : {training_result}")  
     async with httpx.AsyncClient() as client:
-        response = await client.post( "https://itsmeweb.site/api/model_result", json=data)
+        response = await client.post("https://itsmeweb.site/api/model_result/", json=data)
     
     return response.status_code
 
+def process_file_sync(file_content: bytes, filename: str, user_name: str, user_id: str):
+    try :
+        # 학습 시작 -> 학습 상태 update
+        training_status[user_id] = TrainingStatus.PROCESSING.value
+        print("training_status After process_file_start: ", training_status)
+
+        print(f"User Upload : Received file from request: {filename}")
+        print(f"User Upload : User Name from decoded from request: {user_name}")
+        print(f"User Upload : User ID from request: {user_id}")
+
+        # Save to temporary file
+        temp_file = f"temp_{filename}"
+        with open(temp_file, "wb") as buffer:
+            buffer.write(file_content)
+
+        # Model training code
+        room_name, group, users, result = upload(temp_file, user_name)
+    
+        print(f"Model Learned | result : {result}")
+        print(f"Model Learned | room_name : {room_name}")
+        print(f"Model Learned | user_id : {user_id}")
+        print(f"Model learned | user_name : {user_name}")
+
+        # Remove temporary file
+        os.remove(temp_file)
+
+        # Send request to DB
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        status_code = loop.run_until_complete(send_request_to_new_endpoint(result, user_id, user_name, room_name))
+        loop.close()
+        
+        # 학습이 완료됨
+        training_status[user_id] = TrainingStatus.COMPLETED.value
+        print("training_status After Send to DB: ", training_status)
+        print("training_status After Send to DB: ", training_status)
+
+
+        print(f"Send Request to New EndPoint | Status code: {status_code}")
+
+    except Exception as e :
+        print(f"Error in processing: {str(e)}")
+        training_status[user_id] = TrainingStatus.FAILED.value
+
+
 @app.post("/test")
 async def upload_file(
-    background_tasks:BackgroundTasks,
     user_name: str = Form(...),
     user_id: str = Form(...),
     file: UploadFile = File(...)):
 
-    ## bast64 인코딩 된 내용을 디코딩
+    # Decode base64 encoded user_name
     user_name_decoded = base64.b64decode(user_name).decode('utf-8')
-    
+
     file_content = await file.read()
-
-    # 벡그라운드 작업으로 처리
-    background_tasks.add_task(process_file, file_content, file.filename, user_name_decoded, user_id)
-
-    return {"filename": file.filename, "user_name": user_name_decoded, "user_id": user_id}
-
-async def process_file(file_content: bytes, filename: str, user_name: str, user_id: str):
-
-    print(f"User Upload : Received file from request: {filename}")
-    print(f"User Upload : User Name from decoded from request: {user_name}")
-    print(f"User Upload : User ID from request: {user_id}")
-
-    # 임시 파일로 저장
-    temp_file = f"temp_{filename}"
-    with open(temp_file, "wb") as buffer:
-        buffer.write(file_content)
-
-    # 여기에 모델 학습 코드
-    room_name, group, users, result = upload(temp_file, user_name)
+    if len(file_content) == 0:
+        print("Empty file content")
+        print(f"User Upload : Received file from request: {file.filename}")
+        print(f"User Upload : User Name decoded from request: {user_name_decoded}")
+        print(f"User Upload : User ID from request: {user_id}")
+        return JSONResponse(content={"error": "빈 파일이 업로드되었습니다."}, status_code=400)
     
-    print(f"Model Learned | result : {result}")
-    print(f"Model Learned | room_name : {room_name}")
-    print(f"Model Learned | user_id : {user_id}")
-    print(f"Model learned | user_name : {user_name}")
+    decoded_content = file_content.decode('utf-8')
+    # print(decoded_content)
 
-    # 임시 파일 제거
-    os.remove(temp_file)
+    training_status[user_id] = TrainingStatus.PENDING
 
-    # DB로 request를 보낸다
-    status_code = await send_request_to_new_endpoint(result, user_id, user_name, room_name)
+    print("training_status After Upload: ", training_status)
 
-    print(f"Send Request to New EndPoint | Status code: {status_code}")
+    print("Starting background process")
+    process = mp.Process(target=process_file_sync, args=(file_content, file.filename, user_name_decoded, user_id))
+    process.start()
+    print("Background process started")
+    
+    response_data = {
+        "filename": file.filename,
+        "user_name": user_name_decoded,
+        "user_id": user_id,
+        "message": "File received and processing started",
+        "status": training_status[user_id]
+    }
+
+    print("Returning response")
+    return JSONResponse(content=jsonable_encoder(response_data), status_code=202)
+
+@app.get("/training-status/{user_id}")
+async def get_training_status(user_id: str):
+    print("training_status : ", training_status)
+    status = training_status.get(user_id, TrainingStatus.PENDING.value)
+    return {"user_id": user_id, "status": status}
 
 @app.get("/")
 def read_root():
