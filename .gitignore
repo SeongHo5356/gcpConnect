@@ -2,3 +2,5 @@ chat/
 model_venv/
 hugging_face/
 __pycache__/
+Redis_Arch/__pycache__/
+Redis_Arch/redis_venv/

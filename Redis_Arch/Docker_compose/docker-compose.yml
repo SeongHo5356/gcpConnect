@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+
+  api_server:
+    build: 
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOST=redis
+
+  modeling_server_1:
+    build:
+      context: .
+      dockerfile: Dockerfile.modeling1
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOST=redis
+      - SERVER_URL=http://modeling_server_1:8000
+
+  modeling_server_2:
+    build:
+      context: .
+      dockerfile: Dockerfile.modeling2
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOST=redis
+      - SERVER_URL=http://modeling_server_2:8000
